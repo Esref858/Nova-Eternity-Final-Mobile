@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no, interactive-widget=resizes-content"/>
+<title>Nova Eternity — Final Mobile Fix (Bootstrap)</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;800&display=swap" rel="stylesheet">
+<!-- Bootstrap 5 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+  :root {
+    --bg-dark: #020204;
+    --c-1: #6a00ff;
+    --c-2: #00ffc8;
+    --nova-grad: linear-gradient(135deg, var(--c-1), var(--c-2));
+    --font-main: 'Outfit', sans-serif;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; background: var(--bg-dark); color: #fff;
+    font-family: var(--font-main); height: 100vh; height: 100dvh;
+    display: flex; overflow: hidden; position: relative;
+  }
+  /* keep galaxy & particles */
+  .galaxy-bg {
+    position: absolute; inset: -50%; 
+    background: conic-gradient(from 0deg at 50% 50%, #000 0deg, #1f003a 120deg, #6a00ff 180deg, #001f19 240deg, #000 360deg);
+    filter: blur(70px); opacity: 0.6; animation: spinGalaxy 70s linear infinite; z-index: 0; pointer-events: none;
+  }
+  @keyframes spinGalaxy { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  .particles { position: absolute; inset: 0; pointer-events: none; z-index: 1; }
+  .star { position: absolute; background: white; border-radius: 50%; animation: twinkle 4s infinite ease-in-out; }
+  @keyframes twinkle { 0%, 100% { opacity: 0.2; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); } }
+
+  /* SIDEBAR (desktop) */
+  .sidebar {
+    width: 280px; background: rgba(12, 12, 18, 0.85);
+    backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+    display: flex; flex-direction: column; border-right: 1px solid rgba(255,255,255,0.06);
+    transition: 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); z-index: 200;
+    padding: 20px 12px; padding-top: calc(20px + env(safe-area-inset-top)); 
+    min-width: 220px; max-width: 320px;
+  }
+  .new-chat-btn {
+    background: rgba(255,255,255,0.04); color: #fff; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px;
+    padding: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;
+    transition: 0.4s; margin-bottom: 18px; position: relative; overflow: hidden; font-size:14px;
+  }
+  .new-chat-btn::before { content:''; position: absolute; inset:0; background: var(--nova-grad); opacity: 0; transition: 0.4s; }
+  .new-chat-btn:hover::before { opacity: 0.15; }
+  .history-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+  .h-item { padding: 10px 12px; border-radius: 10px; font-size: 14px; color: #aaa; cursor: pointer; transition: 0.25s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .h-item:hover { background: rgba(255,255,255,0.03); color: #fff; }
+  .h-item.active { background: rgba(106, 0, 255, 0.18); color: #fff; border: 1px solid rgba(106, 0, 255, 0.28); }
+  .sidebar-footer { margin-top: auto; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.06); display: flex; gap: 8px; padding-bottom: env(safe-area-inset-bottom); }
+  .icon-btn { background: transparent; border: 1px solid transparent; color: #aaa; cursor: pointer; padding: 8px; border-radius: 8px; transition: 0.3s; }
+
+  /* MAIN */
+  .main { flex: 1; display: flex; flex-direction: column; position: relative; width: 100%; z-index: 10; }
+  .mobile-header {
+    display: none; align-items: center; justify-content: space-between; padding: 0 16px; position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    background: rgba(12, 12, 18, 0.86); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    border-bottom: 1px solid rgba(255,255,255,0.06); height: calc(58px + env(safe-area-inset-top)); padding-top: env(safe-area-inset-top);
+  }
+  .brand { 
+    font-weight: 800; font-size: 20px; letter-spacing: -1px; background: var(--nova-grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    animation: glowText 3s infinite alternate;
+  }
+  @keyframes glowText { from { filter: drop-shadow(0 0 0px var(--c-1)); } to { filter: drop-shadow(0 0 10px var(--c-2)); } }
+  .hamburger { background: transparent; border: none; cursor: pointer; padding: 6px; width: 36px; display: flex; flex-direction: column; gap: 5px; }
+  .hamburger span { width: 100%; height: 2px; background: #fff; border-radius: 2px; display:block; }
+
+  /* CHAT */
+  .chat-scroll {
+    flex: 1; overflow-y: auto; 
+    padding: calc(60px + 20px + env(safe-area-inset-top)) 12px 140px 12px; 
+    display: flex; flex-direction: column; gap: 18px; scroll-behavior: smooth; 
+  }
+  .msg-group { 
+    display: flex; gap: 12px; max-width: 900px; margin: 0 auto; width: 100%; 
+    opacity: 0; animation: popUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+  @keyframes popUp { from { opacity: 0; transform: translateY(20px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  .msg-group.user { flex-direction: row-reverse; }
+
+  .avatar { width: 38px; height: 38px; border-radius: 12px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(0,0,0,0.3); font-weight: 700; transition: 0.3s; }
+  .avatar.ai { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06); color: #fff; }
+  .avatar.ai svg { width: 20px; height: 20px; fill: url(#gradIcon); }
+  .avatar.user { background: var(--nova-grad); color: #fff; }
+
+  .bubble { font-size: 15px; line-height: 1.6; color: #eee; overflow-wrap: break-word; }
+  .user .bubble {
+    background: #111217; padding: 12px 18px; border-radius: 18px; border-bottom-right-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.05); box-shadow: 0 6px 30px rgba(0,0,0,0.45);
+  }
+  .bot .bubble { background: transparent; padding: 6px 0; width: 100%; }
+
+  .generated-image, .user-upload-img {
+    max-width: 100%; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+    border: 1px solid rgba(255,255,255,0.06); margin-top: 8px; display: block; animation: fadeInImg 0.9s ease forwards;
+  }
+  @keyframes fadeInImg { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+
+  .preview-container { padding: 8px 16px 0 16px; display: none; width: 100%; max-width: 900px; animation: slideUp 0.25s ease; position: absolute; bottom: 92px; left: 50%; transform: translateX(-50%); z-index: 50; }
+  @keyframes slideUp { from { transform: translate(-50%, 10px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+  .preview-box { background: rgba(40,40,50,0.9); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 8px; display: inline-flex; align-items: center; gap: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.45); }
+  .preview-thumb { width: 44px; height: 44px; object-fit: cover; border-radius: 8px; }
+  .preview-close { background: none; border: none; color: #ff6b6b; cursor: pointer; font-weight: bold; padding: 6px; }
+
+  .image-container { position: relative; margin-top: 12px; border-radius: 12px; overflow: hidden; border: 1px solid rgba(255,255,255,0.04); background: rgba(255,255,255,0.02); min-height: 160px; display: flex; align-items: center; justify-content: center; }
+  .img-loading-overlay { position: absolute; inset: 0; background: rgba(20, 20, 25, 0.85); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2; }
+  .scanner-line { width: 100%; height: 2px; background: var(--nova-grad); box-shadow: 0 0 10px var(--c-1); position: absolute; top: 0; animation: scanDown 2s ease-in-out infinite; }
+  @keyframes scanDown { 0% { top: 0%; opacity: 0; } 50% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
+
+  .liquid-loader { display: flex; gap: 6px; padding: 8px 0; }
+  .drop { width: 10px; height: 10px; background: var(--c-1); border-radius: 50%; animation: jump 1s infinite ease-in-out; }
+  .drop:nth-child(2) { background: var(--c-2); animation-delay: 0.12s; }
+  .drop:nth-child(3) { background: #fff; animation-delay: 0.25s; }
+  @keyframes jump { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+
+  .input-container { position: absolute; bottom: 0; left: 0; right: 0; padding: 16px; padding-bottom: calc(16px + env(safe-area-inset-bottom)); display: flex; justify-content: center; background: linear-gradient(to top, #000 20%, transparent); z-index: 60; }
+  .input-wrapper { width: 100%; max-width: 900px; position: relative; background: rgba(25, 25, 30, 0.78); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); border: 1px solid rgba(255,255,255,0.06); border-radius: 20px; padding: 8px 8px 8px 14px; display: flex; align-items: flex-end; gap: 8px; box-shadow: 0 20px 60px rgba(0,0,0,0.45); }
+  .input-wrapper:focus-within { background: rgba(35, 35, 45, 0.95); border-color: rgba(106, 0, 255, 0.45); box-shadow: 0 26px 80px rgba(0,0,0,0.6); transform: translateY(-2px); }
+  textarea { flex: 1; background: transparent; border: none; color: #fff; font-size: 15px; font-family: var(--font-main); resize: none; max-height: 220px; outline: none; height: 46px; padding: 10px 6px; scrollbar-width: none; -ms-overflow-style: none; }
+  textarea::-webkit-scrollbar { display: none; }
+  .attach-btn { width: 42px; height: 44px; background: transparent; border: none; cursor: pointer; color: #bbb; display: flex; align-items: center; justify-content: center; transition: 0.25s; }
+  .attach-btn:hover { color: #fff; transform: scale(1.05); }
+  .send-btn { width: 44px; height: 44px; border-radius: 50%; background: #fff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: 0.25s; }
+  .send-btn:hover { transform: scale(1.05) rotate(90deg); background: var(--nova-grad); }
+  .send-btn svg { width: 18px; height: 18px; fill: #000; transition: 0.25s; }
+  .send-btn:hover svg { fill: #fff; transform: rotate(-90deg); }
+
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); opacity: 0; pointer-events: none; transition: 0.4s; z-index: 150; backdrop-filter: blur(10px); }
+  .overlay.active { opacity: 1; pointer-events: auto; }
+
+  .empty-state { position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); text-align: center; width: 100%; pointer-events: none; }
+  .empty-logo { font-size: 52px; font-weight: 800; letter-spacing: -2px; margin-bottom: 10px; background: var(--nova-grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .empty-sub { font-size: 15px; color: #8b8b8b; }
+
+  /* RESPONSIVE tweaks to make everything fit well on phones */
+  @media (max-width: 992px) {
+    .sidebar { display: none; }
+    .mobile-header { display: flex; }
+    .chat-scroll { padding: calc(58px + 12px + env(safe-area-inset-top)) 12px 120px 12px; }
+    .input-container { padding: 12px; padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
+    .preview-container { bottom: 78px; }
+    .msg-group { gap: 10px; }
+    .avatar { width: 36px; height: 36px; }
+  }
+
+  @media (max-width: 480px) {
+    .input-wrapper { padding: 6px 6px 6px 12px; border-radius: 16px; }
+    .attach-btn, .send-btn { width: 40px; height: 40px; }
+    .generated-image, .user-upload-img { border-radius: 10px; }
+    .empty-logo { font-size: 44px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="galaxy-bg"></div>
+<div class="particles" id="particles"></div>
+<div class="overlay" id="overlay"></div>
+
+<!-- Desktop sidebar -->
+<aside class="sidebar d-none d-lg-flex flex-column" id="sidebar">
+  <div class="new-chat-btn" id="btn-new"><span style="font-size:18px;">＋</span> <span>New Chat</span></div>
+  <div class="history-list" id="history"></div>
+  <div class="sidebar-footer">
+    <button class="icon-btn" id="btn-clear" title="Clear">🗑️</button>
+    <div style="flex:1"></div>
+    <div style="font-size:11px; color:#666; align-self:center;">NOVA ETERNITY</div>
+  </div>
+</aside>
+
+<!-- Mobile offcanvas (Bootstrap) -->
+<div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasSidebar" aria-labelledby="offcanvasLabel">
+  <div class="offcanvas-header">
+    <h5 class="offcanvas-title" id="offcanvasLabel">NOVA</h5>
+    <button type="button" class="btn-close btn-close-white text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+  <div class="offcanvas-body p-0">
+    <div style="padding:12px;">
+      <div class="new-chat-btn" id="off-new"><span style="font-size:18px;">＋</span> <span>New Chat</span></div>
+    </div>
+    <div class="history-list p-2" id="off-history" style="max-height:60vh; overflow:auto;"></div>
+    <div style="padding:12px;">
+      <div style="display:flex; gap:8px; align-items:center;">
+        <button class="icon-btn" id="off-clear" title="Clear">🗑️</button>
+        <div style="flex:1"></div>
+        <div style="font-size:11px; color:#666;">NOVA ETERNITY</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<main class="main ms-auto">
+  <header class="mobile-header">
+    <button class="hamburger" id="hamburger" data-bs-toggle="offcanvas" data-bs-target="#offcanvasSidebar" aria-controls="offcanvasSidebar"><span></span><span></span></button>
+    <div class="brand">NOVA</div>
+    <div style="width:36px"></div>
+  </header>
+
+  <div class="chat-scroll" id="messages">
+    <div class="empty-state" id="welcome-msg">
+      <div class="empty-logo">NOVA</div>
+      <div class="empty-sub">100% Free AI & Image Generation</div>
+    </div>
+  </div>
+
+  <div class="preview-container" id="preview-cont">
+    <div class="preview-box">
+        <img src="" id="img-preview" class="preview-thumb">
+        <span style="font-size:12px; color:#aaa;">Изображение прикреплено (Только для контекста)</span>
+        <button class="preview-close" id="btn-remove-img">✕</button>
+    </div>
+  </div>
+
+  <div class="input-container">
+    <div class="input-wrapper">
+      <input type="file" id="img-upload" accept="image/*" style="display:none">
+      <button class="attach-btn" id="btn-attach" title="Прикрепить изображение">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+      </button>
+      <textarea id="input" placeholder="Спроси или опиши, что создать..." rows="1"></textarea>
+      <button class="send-btn" id="btn-send"><svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg></button>
+    </div>
+  </div>
+</main>
+
+<svg width="0" height="0" style="position:absolute"><defs><linearGradient id="gradIcon" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#6a00ff" /><stop offset="100%" style="stop-color:#00ffc8" /></linearGradient></defs></svg>
+
+<!-- Bootstrap and tiny polyfills for older browsers -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// --- Free standalone chat (no external API keys required) ---
+
+/* === PARTICLES === */
+const pContainer = document.getElementById('particles');
+for(let i=0; i<30; i++) {
+    const star = document.createElement('div');
+    star.className = 'star';
+    const size = Math.random() * 3 + 1;
+    star.style.width = size + 'px'; star.style.height = size + 'px';
+    star.style.left = Math.random() * 100 + '%'; star.style.top = Math.random() * 100 + '%';
+    star.style.animationDuration = (Math.random() * 3 + 2) + 's';
+    star.style.animationDelay = Math.random() * 5 + 's';
+    pContainer.appendChild(star);
+}
+
+const el = {
+  msgs: document.getElementById('messages'),
+  input: document.getElementById('input'),
+  btnSend: document.getElementById('btn-send'),
+  btnAttach: document.getElementById('btn-attach'),
+  imgUpload: document.getElementById('img-upload'),
+  previewCont: document.getElementById('preview-cont'),
+  imgPreview: document.getElementById('img-preview'),
+  btnRemoveImg: document.getElementById('btn-remove-img'),
+
+  btnNew: document.getElementById('btn-new'),
+  btnClear: document.getElementById('btn-clear'),
+  offNew: document.getElementById('off-new'),
+  offClear: document.getElementById('off-clear'),
+  hamburger: document.getElementById('hamburger'),
+  sidebar: document.getElementById('sidebar'),
+  overlay: document.getElementById('overlay'),
+  history: document.getElementById('history'),
+  offHistory: document.getElementById('off-history'),
+  welcome: document.getElementById('welcome-msg')
+};
+
+let state = { chats: [], current: -1 };
+let currentImageBase64 = null;
+
+// file upload handling
+el.btnAttach.onclick = () => el.imgUpload.click();
+el.imgUpload.onchange = function() {
+    const file = this.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onloadend = function() {
+            currentImageBase64 = reader.result;
+            el.imgPreview.src = currentImageBase64;
+            el.previewCont.style.display = 'block';
+        }
+        reader.readAsDataURL(file);
+    }
+};
+el.btnRemoveImg.onclick = () => {
+    currentImageBase64 = null;
+    el.imgUpload.value = '';
+    el.previewCont.style.display = 'none';
+};
+
+// persistence
+function save() { localStorage.setItem('nova_eternity_v3', JSON.stringify(state)); }
+function load() {
+  const d = localStorage.getItem('nova_eternity_v3');
+  if(d) { try { state = JSON.parse(d); } catch(e){ state = {chats:[], current:-1}; } renderHistory(); renderChat(); }
+}
+
+function renderHistory() {
+  if(!el.history) return;
+  el.history.innerHTML = '';
+  el.offHistory.innerHTML = '';
+  state.chats.forEach((c, i) => {
+    const div = document.createElement('div');
+    div.className = `h-item ${i === state.current ? 'active' : ''}`;
+    div.textContent = c.name || 'Chat';
+    div.onclick = () => { state.current = i; renderHistory(); renderChat(); const off = bootstrap.Offcanvas.getInstance(document.getElementById('offcanvasSidebar')); if(off) off.hide(); };
+    el.history.appendChild(div);
+
+    const div2 = div.cloneNode(true);
+    div2.onclick = div.onclick;
+    el.offHistory.appendChild(div2);
+  });
+}
+
+function renderChat() {
+  el.msgs.innerHTML = '';
+  if(state.current < 0 || !state.chats[state.current] || state.chats[state.current].messages.length === 0) {
+    el.msgs.appendChild(el.welcome); el.welcome.style.display = 'block'; return;
+  }
+  el.welcome.style.display = 'none';
+  state.chats[state.current].messages.forEach(m => createMsgNode(m.role, m.text, m.image));
+  scrollToBottom();
+}
+
+function createMsgNode(role, text, imageSrc) {
+  const isUser = role === 'user';
+  const group = document.createElement('div');
+  group.className = `msg-group ${isUser ? 'user' : 'bot'}`;
+  
+  const ava = document.createElement('div');
+  ava.className = `avatar ${isUser ? 'user' : 'ai'}`;
+  if(isUser) ava.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
+  else ava.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10H12V2z"/></svg>`;
+  
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  
+  if (imageSrc && isUser) {
+      const usrImg = document.createElement('img');
+      usrImg.src = imageSrc;
+      usrImg.className = 'user-upload-img';
+      bubble.appendChild(usrImg);
+      if(text) {
+          const caption = document.createElement('div');
+          caption.style.marginTop = '8px';
+          caption.innerHTML = formatText(text);
+          bubble.appendChild(caption);
+      }
+  } 
+  else if (text && text.startsWith('!IMG:')) {
+      const prompt = text.replace('!IMG:', '').trim();
+      const encoded = encodeURIComponent(prompt + ", masterpiece, best quality, 8k, photorealistic");
+      const randomSeed = Math.floor(Math.random() * 999999);
+      const imgUrl = `https://image.pollinations.ai/prompt/${encoded}?nologo=true&seed=${randomSeed}`; 
+      const imgId = 'gen-' + randomSeed;
+      const loaderId = 'load-' + randomSeed;
+
+      bubble.innerHTML = `\n        <div>Создаю (Pollinations Render): <b>${prompt.split(',')[0]}...</b></div>\n        <div class=\"image-container\">\n            <div class=\"img-loading-overlay\" id=\"${loaderId}\">\n                <div class=\"scanner-line\"></div>\n                <div class=\"loading-text\">Рендеринг...</div>\n            </div>\n            <img src=\"${imgUrl}\" id=\"${imgId}\" class=\"generated-image\" alt=\"Art\" />\n        </div>`;
+      
+      setTimeout(() => {
+          const iEl = document.getElementById(imgId);
+          const lEl = document.getElementById(loaderId);
+          if(iEl && lEl) {
+              iEl.onload = () => { lEl.style.display='none'; iEl.classList.add('loaded'); scrollToBottom(); };
+              iEl.onerror = () => { lEl.innerHTML = '<div style="color:red">Ошибка генерации изображения. Попробуйте другой промпт.</div>'; };
+          }
+      }, 100);
+  } else {
+      bubble.innerHTML = formatText(text || '');
+  }
+  
+  group.appendChild(ava); group.appendChild(bubble); el.msgs.appendChild(group);
+}
+
+function createLoader() {
+  const loader = document.createElement('div');
+  loader.id = 'temp-loader'; loader.className = 'msg-group bot';
+  loader.innerHTML = `\n    <div class=\"avatar ai\"><svg viewBox=\"0 0 24 24\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M12 2a10 10 0 1 0 10 10H12V2z\"/></svg></div>\n    <div class=\"bubble\"><div class=\"liquid-loader\"><div class=\"drop\"></div><div class=\"drop\"></div><div class=\"drop\"></div></div></div>`;
+  el.msgs.appendChild(loader); scrollToBottom();
+}
+
+function scrollToBottom() { el.msgs.scrollTop = el.msgs.scrollHeight; }
+function formatText(t) { return (t || "").replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>'); }
+
+async function send() {
+  const txt = el.input.value.trim(); 
+  const imgData = currentImageBase64; 
+  
+  if(!txt && !imgData) return;
+  if(state.current < 0) { state.chats.push({ name: txt ? txt.slice(0, 20) : "AI Chat", messages: [] }); state.current = state.chats.length - 1; renderHistory(); }
+  
+  state.chats[state.current].messages.push({ role: 'user', text: txt, image: imgData });
+  el.input.value = ''; el.input.style.height = '46px'; 
+  currentImageBase64 = null; el.previewCont.style.display = 'none'; el.imgUpload.value = '';
+  
+  renderChat(); createLoader();
+
+  try {
+    // minimal offline-like reply: echo + image command detection
+    // This version uses Pollinations text endpoint to produce image prompts if needed (no API key required)
+
+    let chatHistory = state.chats[state.current].messages.map(m => 
+        `${m.role.toUpperCase()}: ${m.text || (m.image ? "User attached an image." : "")}`
+    ).join('\n');
+    
+    const systemPrompt = `You are a multilingual, creative AI. Analyze the user's last request and chat history. ALWAYS respond in the language of the user's last message. If the user asks to draw/generate an image, output starting with '!IMG:' followed by a single English prompt.`;
+
+    const fullPrompt = `${systemPrompt}\n\nCHAT HISTORY:\n${chatHistory}\n\nUSER'S LATEST REQUEST: ${txt}`;
+
+    // Pollinations text endpoint (CORS-friendly) — returns simple text which may start with !IMG:
+    const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(fullPrompt)}`);
+    if (!res.ok) throw new Error("Pollinations Server Error");
+    const reply = await res.text();
+    
+    document.getElementById('temp-loader')?.remove();
+    state.chats[state.current].messages.push({ role: 'assistant', text: reply });
+    renderChat(); save();
+
+  } catch(e) {
+    document.getElementById('temp-loader')?.remove();
+    alert('AI System Error: ' + e.message + '. Пожалуйста, попробуйте еще раз.');
+  }
+}
+
+el.btnSend.onclick = send;
+// also send on Enter
+el.input.onkeydown = (e) => { if(e.key==='Enter' && !e.shiftKey) { e.preventDefault(); send(); }};
+el.input.oninput = function() { this.style.height = 'auto'; this.style.height = (this.scrollHeight) + 'px'; };
+
+el.btnNew.onclick = () => { state.current = -1; renderHistory(); renderChat(); const off = bootstrap.Offcanvas.getInstance(document.getElementById('offcanvasSidebar')); if(off) off.hide(); };
+el.offNew.onclick = el.btnNew.onclick;
+
+el.btnClear.onclick = () => { if(confirm('Delete all?')) { state.chats = []; state.current = -1; save(); renderHistory(); renderChat(); }};
+el.offClear.onclick = el.btnClear.onclick;
+
+// small focus fix for mobile keyboards
+el.input.addEventListener('focus', () => {
+    if (window.innerWidth <= 768) {
+        setTimeout(function() { el.msgs.scrollTop = el.msgs.scrollHeight; }, 300);
+    }
+});
+
+load();
+</script>
+</body>
+</html>
